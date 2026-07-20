@@ -23,7 +23,7 @@ class Index extends Component
             'description' => 'nullable|string',
         ]);
 
-        $projectService->create($validated);
+        $projectService->store($validated, auth()->user());
 
         $this->reset(['name', 'description']);
         session()->flash('message', 'Project created successfully.');

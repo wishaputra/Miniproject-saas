@@ -21,6 +21,12 @@ class Show extends Component
     public $status = 'todo';
     public $assigned_to = null;
 
+    // Reassign state
+    public $reassignTaskId = null;
+    public $newAssigneeId = null;
+    public $reassignNote = '';
+    public $showReassignModal = false;
+
     public function mount(Project $project)
     {
         // View policy handled by route middleware or here
@@ -39,7 +45,7 @@ class Show extends Component
             'assigned_to' => 'nullable|exists:users,id',
         ]);
 
-        $taskService->create($this->project, $validated);
+        $taskService->store($validated, $this->project, auth()->user());
 
         $this->reset(['title', 'description', 'status', 'assigned_to']);
         session()->flash('message', 'Task created successfully.');
@@ -52,13 +58,57 @@ class Show extends Component
         // Cek policy update
         $this->authorize('update', $task);
 
-        $taskService->update($this->project, $task, ['status' => $newStatus]);
+        $taskService->update($task, ['status' => $newStatus]);
+    }
+
+    public function initiateReassign($taskId, $newAssigneeId)
+    {
+        $task = Task::findOrFail($taskId);
+        $this->authorize('update', $task);
+
+        if (!auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $this->reassignTaskId = $taskId;
+        $this->newAssigneeId = $newAssigneeId;
+        $this->reassignNote = '';
+
+        if ($task->status === 'done') {
+            $this->showReassignModal = true;
+        } else {
+            $this->confirmReassign(app(TaskService::class));
+        }
+    }
+
+    public function confirmReassign(TaskService $taskService)
+    {
+        $task = Task::findOrFail($this->reassignTaskId);
+        $this->authorize('update', $task);
+
+        if ($task->status === 'done') {
+            $this->validate([
+                'reassignNote' => 'required|string',
+            ], [
+                'reassignNote.required' => 'A note is required when reassigning a completed task.',
+            ]);
+        }
+
+        $taskService->reassign($task, $this->newAssigneeId ?: null, auth()->user(), $this->reassignNote);
+
+        $this->resetReassign();
+        session()->flash('message', 'Task reassigned successfully.');
+    }
+
+    public function resetReassign()
+    {
+        $this->reset(['reassignTaskId', 'newAssigneeId', 'reassignNote', 'showReassignModal']);
     }
 
     public function render()
     {
         // Fetch tasks
-        $tasks = $this->project->tasks()->with('assignee')->latest()->get();
+        $tasks = $this->project->tasks()->with(['assignee', 'reassignmentLogs.admin'])->latest()->get();
         
         // Fetch members for assignment dropdown (admin only)
         $members = [];

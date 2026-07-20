@@ -83,6 +83,35 @@ class TaskService
     }
 
     /**
+     * Re-assign task khusus Admin (termasuk validasi note jika status done).
+     */
+    public function reassign(Task $task, ?int $newAssigneeId, User $admin, ?string $note = null): Task
+    {
+        if ($task->status === 'done' && empty(trim($note))) {
+            throw new \InvalidArgumentException('A note is required when reassigning a completed task.');
+        }
+
+        $previousAssignee = $task->assigned_to;
+        
+        if ($previousAssignee !== $newAssigneeId) {
+            \App\Models\TaskReassignmentLog::create([
+                'task_id' => $task->id,
+                'admin_id' => $admin->id,
+                'from_user_id' => $previousAssignee,
+                'to_user_id' => $newAssigneeId,
+                'note' => $note,
+            ]);
+
+            $task->update(['assigned_to' => $newAssigneeId]);
+            $task->refresh();
+
+            $this->dispatchNotificationIfAssigned($task, $previousAssignee);
+        }
+
+        return $task->load(['assignee', 'creator', 'project']);
+    }
+
+    /**
      * Hapus task.
      */
     public function destroy(Task $task): void
