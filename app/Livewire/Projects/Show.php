@@ -105,6 +105,37 @@ class Show extends Component
         $this->reset(['reassignTaskId', 'newAssigneeId', 'reassignNote', 'showReassignModal']);
     }
 
+    // Delete Task State
+    public $deleteTaskId = null;
+    public $showDeleteModal = false;
+
+    public function initiateDelete($taskId)
+    {
+        $task = Task::findOrFail($taskId);
+        $this->authorize('delete', $task);
+
+        $this->deleteTaskId = $taskId;
+        $this->showDeleteModal = true;
+    }
+
+    public function executeDelete()
+    {
+        if (!$this->deleteTaskId) return;
+
+        $task = Task::findOrFail($this->deleteTaskId);
+        $this->authorize('delete', $task);
+
+        $task->delete();
+
+        $this->reset(['deleteTaskId', 'showDeleteModal']);
+        session()->flash('message', 'Task deleted successfully.');
+    }
+
+    public function cancelDelete()
+    {
+        $this->reset(['deleteTaskId', 'showDeleteModal']);
+    }
+
     public function render()
     {
         // Fetch tasks
