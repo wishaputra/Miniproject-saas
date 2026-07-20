@@ -93,17 +93,25 @@ Namun, saya memutuskan untuk **mendenormalisasi** (menambahkan `company_id` lang
 1. **Performa & Simplifikasi Security:** Jika `company_id` ada langsung di tabel tasks, global `CompanyScope` bisa bekerja langsung (`WHERE tasks.company_id = ?`). Jika tidak didenormalisasi, setiap query task harus selalu melakukan query `JOIN projects`. Di skala tabel task yang jutaan row (sering terjadi di aplikasi SaaS), implicit JOIN semacam ini berisiko memperlambat performa read secara signifikan.
 2. Kelemahan pendekatan ini adalah kita harus selalu memastikan nilai `company_id` sinkron dengan `project_id`. Saya menangani kelemahan ini dengan validasi berlapis di level backend.
 
----
+## 🚀 Penilaian Plus (Bonus Points)
 
-## ⏳ Yang Dilewatkan Karena Keterbatasan Waktu
+Sesuai kriteria PDF bagian "Nilai Plus", fitur berikut telah diimplementasikan:
+1. **Hindari N+1 Query & Indexing:** 
+   - Semua relasi di API (seperti `assignee`, `project`, `creator`) dimuat menggunakan `.with()` (Eager Loading).
+   - Kolom ForeignKey `company_id`, `project_id`, dan `assigned_to` sudah di-*index* di sisi Database (Migration).
+2. **Audit Trail (Re-assign Task):**
+   - Admin diwajibkan menyertakan **Note / Alasan** ketika menggeser (*re-assign*) tugas yang sudah berstatus *Done* atau *In Progress*. Riwayat dicatat secara terpisah di tabel `task_reassignment_logs`.
+3. **Penanganan Race Condition (Pessimistic Locking):**
+   - **Masalah:** Dua pengguna bisa saja secara bersamaan mengupdate status/memindahkan tugas di waktu/milidetik yang sama (Race condition).
+   - **Solusi:** Saya membungkus proses `update` dan `reassign` pada `TaskService` menggunakan `DB::transaction()` serta metode `->lockForUpdate()`. 
+   - **Trade-off:** `lockForUpdate()` akan membuat query dari pengguna ke-2 menunggu (mengantri) baris data tersebut dilepaskan oleh transaksi pengguna ke-1 (Pessimistic Locking). Sangat aman dari data korup, walau sedikit menambah latency jika sistem sangat ramai di detik yang sama.
+4. **Migration yang Reversible:**
+   - Semua kelas migrasi memiliki fungsi `down()` yang valid.
+5. **Contoh CI/CD & Containerization:**
+   - **GitHub Actions:** Terdapat file konfigurasi `.github/workflows/tests.yml` untuk memicu *automated testing* saat kode di-push ke branch master/main.
+   - **Dockerfile:** Terdapat contoh `Dockerfile` lengkap dengan Multi-stage build menggunakan Nginx & PHP 8.3-FPM Alpine siap untuk deployment ke arsitektur *Cloud*.
 
-Sesuai instruksi soal yang berfokus ke tenant isolation vs kelengkapan, saya sengaja tidak (belum) mengerjakan fitur-fitur di bawah ini untuk mengejar kualitas kode pada fitur wajib:
-- **Tampilan Frontend (Blade + Livewire):** Saya hanya fokus menyediakan REST API komplit.
-- **Dockerfile & CI/CD Pipeline:** Agar mempermudah review kode murni PHP/Laravel.
-- **Race Condition Handling (Optimistic/Pessimistic Locking):** Belum menangani skenario apabila 2 admin mengedit task secara per-milidetik bersamaan.
-- **Audit Trail (Activity Log):** Belum ada log siapa yang mengubah apa dan kapan di level database.
 
----
 
 ## 🔌 API Request Examples
 

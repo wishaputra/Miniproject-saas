@@ -7,6 +7,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * TaskService
@@ -71,15 +72,20 @@ class TaskService
      */
     public function update(Task $task, array $data): Task
     {
-        $previousAssignee = $task->assigned_to;
+        return DB::transaction(function () use ($task, $data) {
+            // Lock baris task secara eksklusif untuk mencegah race condition (mis. 2 admin update status bersamaan)
+            $lockedTask = Task::where('id', $task->id)->lockForUpdate()->first();
 
-        $task->update($data);
-        $task->refresh();
+            $previousAssignee = $lockedTask->assigned_to;
 
-        // Dispatch notifikasi jika assigned_to berubah (atau baru di-set)
-        $this->dispatchNotificationIfAssigned($task, $previousAssignee);
+            $lockedTask->update($data);
+            $lockedTask->refresh();
 
-        return $task->load(['assignee', 'creator', 'project']);
+            // Dispatch notifikasi jika assigned_to berubah (atau baru di-set)
+            $this->dispatchNotificationIfAssigned($lockedTask, $previousAssignee);
+
+            return $lockedTask->load(['assignee', 'creator', 'project']);
+        });
     }
 
     /**
@@ -87,28 +93,32 @@ class TaskService
      */
     public function reassign(Task $task, ?int $newAssigneeId, User $admin, ?string $note = null): Task
     {
-        if (in_array($task->status, ['done', 'in_progress']) && empty(trim($note))) {
-            throw new \InvalidArgumentException('A note is required when reassigning a task in progress or completed.');
-        }
+        return DB::transaction(function () use ($task, $newAssigneeId, $admin, $note) {
+            $lockedTask = Task::where('id', $task->id)->lockForUpdate()->first();
 
-        $previousAssignee = $task->assigned_to;
-        
-        if ($previousAssignee !== $newAssigneeId) {
-            \App\Models\TaskReassignmentLog::create([
-                'task_id' => $task->id,
-                'admin_id' => $admin->id,
-                'from_user_id' => $previousAssignee,
-                'to_user_id' => $newAssigneeId,
-                'note' => $note,
-            ]);
+            if (in_array($lockedTask->status, ['done', 'in_progress']) && empty(trim($note))) {
+                throw new \InvalidArgumentException('A note is required when reassigning a task in progress or completed.');
+            }
 
-            $task->update(['assigned_to' => $newAssigneeId]);
-            $task->refresh();
+            $previousAssignee = $lockedTask->assigned_to;
+            
+            if ($previousAssignee !== $newAssigneeId) {
+                \App\Models\TaskReassignmentLog::create([
+                    'task_id' => $lockedTask->id,
+                    'admin_id' => $admin->id,
+                    'from_user_id' => $previousAssignee,
+                    'to_user_id' => $newAssigneeId,
+                    'note' => $note,
+                ]);
 
-            $this->dispatchNotificationIfAssigned($task, $previousAssignee);
-        }
+                $lockedTask->update(['assigned_to' => $newAssigneeId]);
+                $lockedTask->refresh();
 
-        return $task->load(['assignee', 'creator', 'project']);
+                $this->dispatchNotificationIfAssigned($lockedTask, $previousAssignee);
+            }
+
+            return $lockedTask->load(['assignee', 'creator', 'project']);
+        });
     }
 
     /**
