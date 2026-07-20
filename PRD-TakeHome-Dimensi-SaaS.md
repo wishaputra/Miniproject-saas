@@ -14,7 +14,7 @@
 | 4 | Background Job (SendTaskAssignedNotification) | ✅ Selesai | *(stub, dispatch ada di TaskService)* |
 | 5 | Testing (tenant isolation + RBAC + validasi) | ✅ Selesai | *(belum commit)* |
 | 6 | Seeder + README | ✅ Selesai | *(belum commit)* |
-| 7 | Frontend Blade + Livewire *(opsional)* | 🔲 Belum | — |
+| 7 | Frontend Blade + Livewire *(opsional)* | ✅ Selesai | *(belum commit)* |
 
 ### File yang sudah dibuat
 
