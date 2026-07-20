@@ -1,66 +1,170 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Mini Project Management SaaS Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Ini adalah sistem backend multi-tenant untuk aplikasi manajemen proyek skala kecil (seperti Trello/Asana), dibangun sebagai pemenuhan Take-Home Test Dimensi Software. Fokus utama dari backend ini adalah keamanan data antar perusahaan (tenant isolation) melalui implementasi *row-level scoping*.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## 🚀 Cara Menjalankan Project (Setup Guide)
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Pastikan sistem Anda sudah memiliki PHP 8.2+, Composer, dan MySQL/MariaDB yang siap digunakan.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Clone repository ini**
+   ```bash
+   git clone https://github.com/wishaputra/Miniproject-saas.git
+   cd Miniproject-saas
+   ```
 
-## Learning Laravel
+2. **Siapkan Environment Variables**
+   Salin `.env.example` ke `.env` lalu sesuaikan konfigurasi database Anda (DB_DATABASE, DB_USERNAME, DB_PASSWORD).
+   ```bash
+   cp .env.example .env
+   ```
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+3. **Install Dependencies & Generate Key**
+   ```bash
+   composer install
+   php artisan key:generate
+   ```
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+4. **Migrate dan Seed Database**
+   Perintah ini akan membuat semua tabel dan mengisi database dengan data dummy agar bisa langsung dites (credentials ada di bawah).
+   ```bash
+   php artisan migrate:fresh --seed
+   ```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+5. **Jalankan Aplikasi dan Queue Worker**
+   Gunakan dua terminal (console) berbeda. Terminal pertama untuk menjalankan API server:
+   ```bash
+   php artisan serve
+   ```
+   Terminal kedua untuk menjalankan Queue Worker. Ini wajib dijalankan agar background job pengiriman notifikasi (saat task di-assign) bisa diproses.
+   ```bash
+   php artisan queue:work
+   ```
 
-## Laravel Sponsors
+6. **Jalankan Automated Tests (Opsional tapi disarankan)**
+   Untuk membuktikan bahwa aturan Tenant Isolation dan Role-Based Access Control (RBAC) berfungsi sesuai syarat, jalankan:
+   ```bash
+   php artisan test
+   ```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+---
 
-### Premium Partners
+## 🔐 Kredensial Uji Coba (Seeded Data)
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[WebReinvent](https://webreinvent.com/)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Jump24](https://jump24.co.uk)**
-- **[Redberry](https://redberry.international/laravel/)**
-- **[Active Logic](https://activelogic.com)**
-- **[byte5](https://byte5.de)**
-- **[OP.GG](https://op.gg)**
+Data ini otomatis dibuat saat Anda menjalankan `php artisan migrate:fresh --seed`.
+Password untuk **semua akun** di bawah ini adalah: `password`
 
-## Contributing
+### Company 1: PT Contoh Alpha
+- **Admin**: `admin@alpha.com`
+- **Member 1**: `budi@alpha.com`
+- **Member 2**: `siti@alpha.com`
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Company 2: PT Contoh Beta
+- **Admin**: `admin@beta.com`
+- **Member 1**: `joko@beta.com`
+- **Member 2**: `ani@beta.com`
 
-## Code of Conduct
+*Gunakan salah satu dari akun ini untuk mendapatkan Token Sanctum (lihat bagian API Examples di bawah).*
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## 🏛️ Strategi Multi-Tenancy (Row-Level Scoping)
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Karena semua data client (tenant) disimpan di satu database dan tabel yang sama (Single Database Shared Schema), saya menggunakan pendekatan **Row-Level Scoping**. Setiap tabel utama (seperti `projects`, `tasks`, dan `users`) memiliki kolom `company_id`.
 
-## License
+Agar developer tidak lupa menambahkan `WHERE company_id = ?` di setiap query API, saya menggunakan mekanisme **Global Scope** di Laravel bernama `CompanyScope`. Mekanismenya sebagai berikut:
+1. Ketika query apapun dijalankan pada model yang dilindungi, `CompanyScope` otomatis menyuntikkan klausa `WHERE company_id = auth()->user()->company_id`.
+2. Pengisian nilai `company_id` saat `INSERT` ditangani secara diam-diam (otomatis) lewat *model event* di dalam trait `BelongsToCompany`.
+3. Hasilnya: Nilai `company_id` sama sekali **tidak pernah diambil dari input API Request (body maupun parameter URL)**. Semua bergantung 100% dari token autentikasi.
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+**Trade-off Strategi Ini:**
+- Kelebihan: Arsitektur sederhana, performa cepat, perombakan database minim, query otomatis terlindungi tanpa harus ingat menambah sintaks filter.
+- Kekurangan: Developer *rawan* membocorkan data jika mereka menggunakan operasi raw SQL (`DB::statement()`) atau men-disable global scope lewat `->withoutGlobalScope()`. Sistem ini membutuhkan kedisiplinan menggunakan Eloquent ORM secara ketat.
+
+---
+
+## ⚖️ Keputusan Teknis Penting: Denormalisasi `company_id` ke Tabel Tasks
+
+Pada awalnya saya sempat ragu apakah tabel `tasks` perlu memiliki kolom `company_id`. Secara teori normalisasi relasional (3NF), tabel task cukup memiliki `project_id`. Kita bisa tahu task itu milik company apa dengan cara menengok `company_id` yang ada di tabel `projects` induknya (via JOIN).
+
+Namun, saya memutuskan untuk **mendenormalisasi** (menambahkan `company_id` langsung ke dalam tabel `tasks`).
+**Alasan Trade-off:**
+1. **Performa & Simplifikasi Security:** Jika `company_id` ada langsung di tabel tasks, global `CompanyScope` bisa bekerja langsung (`WHERE tasks.company_id = ?`). Jika tidak didenormalisasi, setiap query task harus selalu melakukan query `JOIN projects`. Di skala tabel task yang jutaan row (sering terjadi di aplikasi SaaS), implicit JOIN semacam ini berisiko memperlambat performa read secara signifikan.
+2. Kelemahan pendekatan ini adalah kita harus selalu memastikan nilai `company_id` sinkron dengan `project_id`. Saya menangani kelemahan ini dengan validasi berlapis di level backend.
+
+---
+
+## ⏳ Yang Dilewatkan Karena Keterbatasan Waktu
+
+Sesuai instruksi soal yang berfokus ke tenant isolation vs kelengkapan, saya sengaja tidak (belum) mengerjakan fitur-fitur di bawah ini untuk mengejar kualitas kode pada fitur wajib:
+- **Tampilan Frontend (Blade + Livewire):** Saya hanya fokus menyediakan REST API komplit.
+- **Dockerfile & CI/CD Pipeline:** Agar mempermudah review kode murni PHP/Laravel.
+- **Race Condition Handling (Optimistic/Pessimistic Locking):** Belum menangani skenario apabila 2 admin mengedit task secara per-milidetik bersamaan.
+- **Audit Trail (Activity Log):** Belum ada log siapa yang mengubah apa dan kapan di level database.
+
+---
+
+## 🔌 API Request Examples
+
+Untuk memudahkan pengujian via Postman, cURL, atau ThunderClient. Pastikan Anda menyertakan Header `Accept: application/json` pada semua request.
+
+### 1. Register Company & Admin Baru
+```curl
+curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
+-H "Accept: application/json" \
+-H "Content-Type: application/json" \
+-d '{
+    "company_name": "PT Jaya Abadi",
+    "name": "Bapak CEO",
+    "email": "ceo@jayaabadi.com",
+    "password": "password",
+    "password_confirmation": "password"
+}'
+```
+*(Simpan nilai token dari respons JSON, Anda butuh ini untuk request selanjutnya)*
+
+### 2. Login
+```curl
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
+-H "Accept: application/json" \
+-H "Content-Type: application/json" \
+-d '{
+    "email": "admin@alpha.com",
+    "password": "password"
+}'
+```
+
+### 3. List Semua Project (Menggunakan Token)
+```curl
+curl -X GET http://127.0.0.1:8000/api/v1/projects \
+-H "Accept: application/json" \
+-H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>"
+```
+
+### 4. Create Project (Hanya bisa oleh Admin)
+```curl
+curl -X POST http://127.0.0.1:8000/api/v1/projects \
+-H "Accept: application/json" \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>" \
+-d '{
+    "name": "Project Penting Tahun Ini",
+    "description": "Fokus pada Q3."
+}'
+```
+
+### 5. Create Member Baru (Admin Only)
+```curl
+curl -X POST http://127.0.0.1:8000/api/v1/users \
+-H "Accept: application/json" \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>" \
+-d '{
+    "name": "Staff Baru",
+    "email": "staff@alpha.com",
+    "password": "password",
+    "password_confirmation": "password"
+}'
+```
+*(Member yang baru dibuat otomatis akan masuk ke company yang sama dengan Admin, dan rolenya pasti 'member').*
