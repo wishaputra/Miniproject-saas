@@ -12,7 +12,7 @@
 | 2b | Fix: CompanyScope guard hardening + exception handlers + default role=member | ✅ Selesai | *(belum commit)* |
 | 3 | CRUD Project & Task + Policy RBAC + Kelola User | ✅ Selesai | *(belum commit)* |
 | 4 | Background Job (SendTaskAssignedNotification) | ✅ Selesai | *(stub, dispatch ada di TaskService)* |
-| 5 | Testing (tenant isolation + RBAC + validasi) | 🔲 Belum | — |
+| 5 | Testing (tenant isolation + RBAC + validasi) | ✅ Selesai | *(belum commit)* |
 | 6 | Seeder + README | 🔲 Belum | — |
 | 7 | Frontend Blade + Livewire *(opsional)* | 🔲 Belum | — |
 
