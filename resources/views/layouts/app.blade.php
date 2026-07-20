@@ -22,9 +22,14 @@
                             <span class="text-xl font-bold tracking-tight text-brand-600">MiniSaaS</span>
                         </div>
                         <div class="hidden sm:-my-px sm:ml-8 sm:flex sm:space-x-8">
-                            <a href="/" class="border-brand-500 text-slate-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                                Projects
+                            <a href="{{ route('home') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('home', 'projects.*') ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }} text-sm font-medium transition-colors">
+                                Dashboard
                             </a>
+                            @if(auth()->user() && auth()->user()->isAdmin())
+                            <a href="{{ route('activity-logs.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('activity-logs.*') ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }} text-sm font-medium transition-colors">
+                                Activity Logs
+                            </a>
+                            @endif
                         </div>
                     </div>
                     <div class="hidden sm:ml-6 sm:flex sm:items-center">

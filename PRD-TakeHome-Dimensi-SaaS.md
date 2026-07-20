@@ -276,9 +276,9 @@ Gunakan Laravel **Feature Test** (hit endpoint via HTTP, bukan unit test terisol
 Urutan prioritas kalau ada sisa waktu:
 1. Index kolom yang sering di-query (sudah masuk skema di atas — gratis, kerjakan dari awal)
 2. Migration reversible (`down()` diisi benar — juga gratis, biasakan dari awal)
-3. Dockerfile sederhana (docker-compose: app + mysql)
-4. Audit trail sederhana (tabel `activity_logs`: who/what/when)
+4. Dockerfile sederhana (docker-compose: app + mysql)
 5. Penjelasan race condition di README (contoh: dua admin update task bersamaan) — cukup dijelaskan, tidak wajib diimplementasi kalau waktu mepet
+6. **Audit Trail (Activity Log) Menyeluruh:** Mencatat setiap aktivitas Create, Update, Delete menggunakan Model Observers dengan dukungan Tenant Isolation.
 
 ---
 

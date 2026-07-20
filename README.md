@@ -99,8 +99,11 @@ Sesuai kriteria PDF bagian "Nilai Plus", fitur berikut telah diimplementasikan:
 1. **Hindari N+1 Query & Indexing:** 
    - Semua relasi di API (seperti `assignee`, `project`, `creator`) dimuat menggunakan `.with()` (Eager Loading).
    - Kolom ForeignKey `company_id`, `project_id`, dan `assigned_to` sudah di-*index* di sisi Database (Migration).
-2. **Audit Trail (Re-assign Task):**
-   - Admin diwajibkan menyertakan **Note / Alasan** ketika menggeser (*re-assign*) tugas yang sudah berstatus *Done* atau *In Progress*. Riwayat dicatat secara terpisah di tabel `task_reassignment_logs`.
+2. **Audit Trail (Activity Log) Menyeluruh:**
+   - **Fitur Baru:** Setiap aksi Create, Update, dan Delete pada Project maupun Task akan otomatis terekam di tabel `activity_logs`.
+   - Proses pencatatan ini bekerja secara transparan di background menggunakan **Model Observers** (`TaskObserver` & `ProjectObserver`).
+   - Terdapat antarmuka UI khusus bagi Admin untuk melihat *history* log secara lengkap. Tentu saja, log ini **sepenuhnya tunduk pada aturan Tenant Isolation**, sehingga Admin Perusahaan A sama sekali tidak bisa melihat aktivitas dari Perusahaan B.
+   - (Sebagai pelengkap, Admin juga tetap diwajibkan menyertakan Note / Alasan khusus ketika menggeser tugas yang berstatus *Done/In Progress* di fitur *re-assign*).
 3. **Penanganan Race Condition (Pessimistic Locking):**
    - **Masalah:** Dua pengguna bisa saja secara bersamaan mengupdate status/memindahkan tugas di waktu/milidetik yang sama (Race condition).
    - **Solusi:** Saya membungkus proses `update` dan `reassign` pada `TaskService` menggunakan `DB::transaction()` serta metode `->lockForUpdate()`. 
