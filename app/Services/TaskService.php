@@ -87,8 +87,8 @@ class TaskService
      */
     public function reassign(Task $task, ?int $newAssigneeId, User $admin, ?string $note = null): Task
     {
-        if ($task->status === 'done' && empty(trim($note))) {
-            throw new \InvalidArgumentException('A note is required when reassigning a completed task.');
+        if (in_array($task->status, ['done', 'in_progress']) && empty(trim($note))) {
+            throw new \InvalidArgumentException('A note is required when reassigning a task in progress or completed.');
         }
 
         $previousAssignee = $task->assigned_to;

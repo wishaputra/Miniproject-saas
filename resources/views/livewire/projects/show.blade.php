@@ -112,11 +112,11 @@
                     <form wire:submit="confirmReassign">
                         <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                             <h3 class="text-lg leading-6 font-medium text-slate-900" id="modal-title">
-                                Reassign Completed Task
+                                Reassign Active/Completed Task
                             </h3>
                             <div class="mt-2">
                                 <p class="text-sm text-slate-500 mb-4">
-                                    This task is marked as "Done". Please provide a reason for reassigning it to someone else.
+                                    This task is marked as "In Progress" or "Done". Please provide a reason for reassigning it to someone else.
                                 </p>
                                 <textarea wire:model="reassignNote" rows="3" class="shadow-sm focus:ring-brand-500 focus:border-brand-500 block w-full sm:text-sm border-slate-300 rounded-md p-2 border" placeholder="Enter reason for reassignment..." required></textarea>
                                 @error('reassignNote') <span class="text-xs text-red-600 mt-1 block">{{ $message }}</span> @enderror

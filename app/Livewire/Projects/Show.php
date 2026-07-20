@@ -74,7 +74,7 @@ class Show extends Component
         $this->newAssigneeId = $newAssigneeId;
         $this->reassignNote = '';
 
-        if ($task->status === 'done') {
+        if (in_array($task->status, ['done', 'in_progress'])) {
             $this->showReassignModal = true;
         } else {
             $this->confirmReassign(app(TaskService::class));
@@ -86,7 +86,7 @@ class Show extends Component
         $task = Task::findOrFail($this->reassignTaskId);
         $this->authorize('update', $task);
 
-        if ($task->status === 'done') {
+        if (in_array($task->status, ['done', 'in_progress'])) {
             $this->validate([
                 'reassignNote' => 'required|string',
             ], [
