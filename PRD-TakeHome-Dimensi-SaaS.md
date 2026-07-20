@@ -1,5 +1,95 @@
 # PRD — Mini Project Management SaaS (Take-Home Test Dimensi Software)
 
+---
+
+## 📊 PROGRESS TRACKER
+> *Diupdate otomatis oleh pair-programmer. Last update: 2026-07-20*
+
+| # | Milestone | Status | Commit |
+|---|-----------|--------|--------|
+| 1 | Skema DB (migrations + models + index) | ✅ Selesai | `39d0355` |
+| 2 | Auth Sanctum + Global Scope tenant isolation | ✅ Selesai | `f876ddc` |
+| 2b | Fix: CompanyScope guard hardening + exception handlers + default role=member | ✅ Selesai | *(belum commit)* |
+| 3 | CRUD Project & Task + Policy RBAC + Kelola User | ✅ Selesai | *(belum commit)* |
+| 4 | Background Job (SendTaskAssignedNotification) | ✅ Selesai | *(stub, dispatch ada di TaskService)* |
+| 5 | Testing (tenant isolation + RBAC + validasi) | 🔲 Belum | — |
+| 6 | Seeder + README | 🔲 Belum | — |
+| 7 | Frontend Blade + Livewire *(opsional)* | 🔲 Belum | — |
+
+### File yang sudah dibuat
+
+```
+database/migrations/
+  0000_00_00_000000_create_companies_table.php     ✅
+  0001_01_01_000000_create_users_table.php          ✅ (+company_id, role=member default)
+  2024_01_01_000001_create_projects_table.php       ✅
+  2024_01_01_000002_create_tasks_table.php          ✅ (company_id denormalized + 3 index)
+
+app/Models/
+  Company.php                                       ✅
+  User.php                                          ✅ (+HasApiTokens, isAdmin/isMember)
+  Project.php                                       ✅ (BelongsToCompany trait)
+  Task.php                                          ✅ (BelongsToCompany trait)
+  Scopes/CompanyScope.php                           ✅ (guard berlapis, sumber HANYA auth)
+
+app/Traits/
+  BelongsToCompany.php                              ✅ (global scope + auto-fill company_id)
+  ApiResponse.php                                   ✅ (successResponse + errorResponse)
+
+app/Policies/
+  ProjectPolicy.php                                 ✅ (admin=full CRUD, member=read)
+  TaskPolicy.php                                    ✅ (member update: cek assigned_to===id)
+  UserPolicy.php                                    ✅ (admin-only)
+
+app/Http/Requests/
+  Auth/RegisterRequest.php                          ✅
+  Auth/LoginRequest.php                             ✅
+  Project/StoreProjectRequest.php                   ✅
+  Project/UpdateProjectRequest.php                  ✅ (PATCH via 'sometimes')
+  Task/StoreTaskRequest.php                         ✅ (assigned_to: Rule::exists scoped)
+  Task/UpdateTaskRequest.php                        ✅ (member=status only, admin=all fields)
+  User/StoreUserRequest.php                         ✅ (no role/company_id field)
+
+app/Http/Resources/
+  UserResource.php                                  ✅
+  ProjectResource.php                               ✅ (whenLoaded → no N+1)
+  TaskResource.php                                  ✅ (whenLoaded → no N+1)
+
+app/Services/
+  AuthService.php                                   ✅
+  ProjectService.php                                ✅ (with() eager load di semua method)
+  TaskService.php                                   ✅ (dispatch job saat assigned_to berubah)
+  UserService.php                                   ✅ (hardcode role=member, explicit company filter)
+
+app/Jobs/
+  SendTaskAssignedNotification.php                  ✅ (ShouldQueue + Log::info)
+
+app/Http/Controllers/Api/V1/
+  Auth/AuthController.php                           ✅
+  ProjectController.php                             ✅ (tipis, authorize→service→response)
+  TaskController.php                                ✅ (+ensureTaskBelongsToProject guard)
+  UserController.php                                ✅
+
+routes/api.php                                      ✅ (15 routes, semua sesuai PRD)
+bootstrap/app.php                                   ✅ (6 exception handlers → envelope)
+```
+
+### Keputusan arsitektur yang sudah diambil
+
+1. **Row-level scoping** via `BelongsToCompany` trait + `CompanyScope` global scope
+2. **company_id selalu dari token** — tidak pernah dari request/URL/body, di-enforce di 3 lapis:
+   - `CompanyScope::apply()` — setiap query otomatis ter-filter
+   - `BelongsToCompany::bootBelongsToCompany()` — auto-fill saat `creating`
+   - Service layer — hardcode di `UserService::store()` juga
+3. **Thin controller pattern** — semua logic di Service class
+4. **UpdateTaskRequest role-based rules** — member hanya bisa kirim `status`, field lain diabaikan di level validasi (tidak sampai ke service)
+5. **TaskController::ensureTaskBelongsToProject()** — cegah task hopping antar project dalam company yang sama
+6. **N+1 prevention** — semua service method pakai `with()`, resource pakai `whenLoaded()`
+7. **assigned_to validation** — `Rule::exists()->where('company_id', ...)` cegah cross-tenant assignment
+8. **job dispatch only when assigned_to changes** — `dispatchNotificationIfAssigned()` bandingkan nilai lama vs baru
+
+---
+
 ## 0. Ringkasan Soal
 Membuat backend **multi-tenant SaaS** untuk mini Project Management (versi kecil Asana/Trello).
 - **Penilai fokus ke:** cara berpikir & keputusan arsitektur, BUKAN kelengkapan fitur.
