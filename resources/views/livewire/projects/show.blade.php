@@ -44,7 +44,7 @@
         </div>
         <ul role="list" class="divide-y divide-slate-200">
             @forelse($tasks as $task)
-            <li class="px-4 py-4 sm:px-6 hover:bg-slate-50 transition-colors">
+            <li wire:key="task-{{ $task->id }}" class="px-4 py-4 sm:px-6 hover:bg-slate-50 transition-colors">
                 <div class="flex items-center justify-between">
                     <div class="flex flex-col">
                         <p class="text-sm font-medium text-brand-600 truncate">{{ $task->title }}</p>
