@@ -44,7 +44,27 @@
                             </td>
                             <td class="px-6 py-4 text-sm text-slate-900">
                                 {{ $log->description }}
-                                <div class="text-xs text-slate-500 mt-1">
+                                
+                                @if($log->action === 'updated' && $log->new_values)
+                                    <div class="mt-2 text-xs border-l-2 border-slate-200 pl-3 py-1 space-y-1">
+                                        @foreach($log->new_values as $key => $newValue)
+                                            @if($key !== 'updated_at')
+                                                <div class="flex items-start">
+                                                    <span class="font-semibold text-slate-600 mr-2">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
+                                                    <div class="flex flex-wrap items-center gap-1 text-slate-500">
+                                                        @if(isset($log->old_values[$key]))
+                                                            <span class="line-through bg-red-50 text-red-600 px-1 rounded">{{ is_array($log->old_values[$key]) ? json_encode($log->old_values[$key]) : $log->old_values[$key] }}</span>
+                                                            <span class="text-slate-400">&rarr;</span>
+                                                        @endif
+                                                        <span class="bg-green-50 text-green-700 px-1 rounded">{{ is_array($newValue) ? json_encode($newValue) : $newValue }}</span>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+
+                                <div class="text-xs text-slate-400 mt-2 font-mono">
                                     Model: {{ class_basename($log->loggable_type) }} #{{ $log->loggable_id }}
                                 </div>
                             </td>
