@@ -59,6 +59,22 @@
                                                         <span class="bg-green-50 text-green-700 px-1 rounded">{{ is_array($newValue) ? json_encode($newValue) : $newValue }}</span>
                                                     </div>
                                                 </div>
+                                                @if($key === 'assigned_to' && $log->loggable_type === \App\Models\Task::class)
+                                                    @php
+                                                        $reassignLog = \App\Models\TaskReassignmentLog::where('task_id', $log->loggable_id)
+                                                            ->whereBetween('created_at', [
+                                                                $log->created_at->copy()->subSeconds(2), 
+                                                                $log->created_at->copy()->addSeconds(2)
+                                                            ])
+                                                            ->latest()
+                                                            ->first();
+                                                    @endphp
+                                                    @if($reassignLog && $reassignLog->note)
+                                                        <div class="mt-2 text-xs italic text-slate-600 bg-amber-50 border-l-2 border-amber-400 p-2 rounded-r">
+                                                            <strong class="font-semibold">Admin Note:</strong> {{ $reassignLog->note }}
+                                                        </div>
+                                                    @endif
+                                                @endif
                                             @endif
                                         @endforeach
                                     </div>
