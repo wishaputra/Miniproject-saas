@@ -17,6 +17,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/projects', App\Livewire\Projects\Index::class)->name('projects.index');
     Route::get('/projects/{project}', App\Livewire\Projects\Show::class)->name('projects.show');
     Route::get('/activity-logs', App\Livewire\ActivityLogs\Index::class)->name('activity-logs.index');
+    Route::get('/users', App\Livewire\Users\Index::class)->name('users.index');
 
     Route::post('/logout', function () {
         Auth::logout();

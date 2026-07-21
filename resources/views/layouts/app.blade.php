@@ -26,6 +26,9 @@
                                 Dashboard
                             </a>
                             @if(auth()->user() && auth()->user()->isAdmin())
+                            <a href="{{ route('users.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('users.*') ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }} text-sm font-medium transition-colors">
+                                Users
+                            </a>
                             <a href="{{ route('activity-logs.index') }}" class="inline-flex items-center px-1 pt-1 border-b-2 {{ request()->routeIs('activity-logs.*') ? 'border-brand-500 text-slate-900' : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700' }} text-sm font-medium transition-colors">
                                 Activity Logs
                             </a>
