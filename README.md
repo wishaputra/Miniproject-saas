@@ -1,6 +1,6 @@
 # Mini Project Management SaaS Backend
 
-Ini adalah sistem backend multi-tenant untuk aplikasi manajemen proyek skala kecil (seperti Trello/Asana), dibangun sebagai pemenuhan Take-Home Test Dimensi Software. Fokus utama dari backend ini adalah keamanan data antar perusahaan (tenant isolation) melalui implementasi *row-level scoping*.
+Sistem backend multi-tenant untuk aplikasi manajemen proyek skala kecil (seperti Trello/Asana), dibangun sebagai pemenuhan Take-Home Test Dimensi Software. Fokus utama backend ini adalah keamanan data antar perusahaan (tenant isolation) melalui *row-level scoping*.
 
 ---
 
@@ -33,26 +33,29 @@ Pastikan sistem Anda sudah memiliki PHP 8.2+, Composer, dan MySQL/MariaDB yang s
    ```
 
 5. **Jalankan Aplikasi dan Queue Worker**
-   Gunakan dua terminal (console) berbeda. Terminal pertama untuk menjalankan API server:
+   Gunakan dua terminal berbeda. Terminal pertama untuk menjalankan API server:
    ```bash
    php artisan serve
    ```
-   Terminal kedua untuk menjalankan Queue Worker. Ini wajib dijalankan agar background job pengiriman notifikasi (saat task di-assign) bisa diproses.
+   Terminal kedua untuk menjalankan Queue Worker. Ini **wajib dijalankan** agar background job pengiriman notifikasi (saat task di-assign) bisa diproses:
    ```bash
    php artisan queue:work
    ```
 
-6. **Jalankan Automated Tests (Opsional tapi disarankan)**
-   Untuk membuktikan bahwa aturan Tenant Isolation dan Role-Based Access Control (RBAC) berfungsi sesuai syarat, jalankan:
+6. **Jalankan Automated Tests**
+   Untuk membuktikan bahwa Tenant Isolation dan Role-Based Access Control (RBAC) berfungsi sesuai syarat:
    ```bash
    php artisan test
    ```
+
+7. **Akses Frontend (opsional, bonus demo layer)**
+   Selain REST API, tersedia juga UI sederhana berbasis Blade + Livewire untuk demo — buka `http://127.0.0.1:8000/login` di browser setelah `php artisan serve` jalan. UI ini mengonsumsi Service layer yang sama dengan API (bukan requirement wajib di soal, dibangun sebagai nilai tambah demo).
 
 ---
 
 ## 🔐 Kredensial Uji Coba (Seeded Data)
 
-Data ini otomatis dibuat saat Anda menjalankan `php artisan migrate:fresh --seed`.
+Data ini otomatis dibuat saat menjalankan `php artisan migrate:fresh --seed`.
 Password untuk **semua akun** di bawah ini adalah: `password`
 
 ### Company 1: PT Contoh Alpha
@@ -65,66 +68,77 @@ Password untuk **semua akun** di bawah ini adalah: `password`
 - **Member 1**: `joko@beta.com`
 - **Member 2**: `ani@beta.com`
 
-*Gunakan salah satu dari akun ini untuk mendapatkan Token Sanctum (lihat bagian API Examples di bawah).*
+*Gunakan salah satu akun ini untuk mendapatkan Token Sanctum (lihat bagian API Examples di bawah). Untuk membuktikan tenant isolation secara manual, coba akses resource company lain dengan token dari company yang berbeda — harus mendapat 404.*
 
 ---
 
 ## 🏛️ Strategi Multi-Tenancy (Row-Level Scoping)
 
-Karena semua data client (tenant) disimpan di satu database dan tabel yang sama (Single Database Shared Schema), saya menggunakan pendekatan **Row-Level Scoping**. Setiap tabel utama (seperti `projects`, `tasks`, dan `users`) memiliki kolom `company_id`.
+Karena semua data tenant disimpan di satu database dan tabel yang sama (*single database, shared schema*), saya menggunakan pendekatan **Row-Level Scoping**. Setiap tabel utama (`projects`, `tasks`, `users`) memiliki kolom `company_id`.
 
-Agar developer tidak lupa menambahkan `WHERE company_id = ?` di setiap query API, saya menggunakan mekanisme **Global Scope** di Laravel bernama `CompanyScope`. Mekanismenya sebagai berikut:
+Agar developer tidak perlu (dan tidak mungkin lupa) menambahkan `WHERE company_id = ?` secara manual di setiap query, saya membuat Global Scope Laravel bernama `CompanyScope`:
 1. Ketika query apapun dijalankan pada model yang dilindungi, `CompanyScope` otomatis menyuntikkan klausa `WHERE company_id = auth()->user()->company_id`.
-2. Pengisian nilai `company_id` saat `INSERT` ditangani secara diam-diam (otomatis) lewat *model event* di dalam trait `BelongsToCompany`.
-3. Hasilnya: Nilai `company_id` sama sekali **tidak pernah diambil dari input API Request (body maupun parameter URL)**. Semua bergantung 100% dari token autentikasi.
+2. Pengisian nilai `company_id` saat `INSERT` ditangani otomatis lewat model event di trait `BelongsToCompany`.
+3. Hasilnya: nilai `company_id` **tidak pernah diambil dari input API request** (body maupun parameter URL) — sepenuhnya bergantung pada token autentikasi.
 
-**Trade-off Strategi Ini:**
-- Kelebihan: Arsitektur sederhana, performa cepat, perombakan database minim, query otomatis terlindungi tanpa harus ingat menambah sintaks filter.
-- Kekurangan: Developer *rawan* membocorkan data jika mereka menggunakan operasi raw SQL (`DB::statement()`) atau men-disable global scope lewat `->withoutGlobalScope()`. Sistem ini membutuhkan kedisiplinan menggunakan Eloquent ORM secara ketat.
+**Trade-off strategi ini:**
+- **Kelebihan:** arsitektur sederhana, performa cepat, perubahan skema minim, setiap query otomatis terlindungi tanpa perlu diingat manual.
+- **Kekurangan:** developer tetap rawan membocorkan data jika menggunakan raw SQL (`DB::statement()`) atau sengaja men-disable global scope lewat `->withoutGlobalScope()`. Strategi ini menuntut disiplin penuh menggunakan Eloquent ORM untuk semua akses data tenant-scoped.
+- **Dibanding schema-per-tenant / database-per-tenant:** dua pendekatan itu lebih aman *by design* (isolasi di level infrastruktur, bukan logic aplikasi), tapi jauh lebih kompleks untuk provisioning, migration, dan deployment — tidak sepadan untuk skala aplikasi ini.
 
 ---
 
-## ⚖️ Keputusan Teknis Penting: Denormalisasi `company_id` ke Tabel Tasks
+## ⚖️ Keputusan Teknis yang Sempat Diragukan: Denormalisasi `company_id` ke Tabel Tasks
 
-Pada awalnya saya sempat ragu apakah tabel `tasks` perlu memiliki kolom `company_id`. Secara teori normalisasi relasional (3NF), tabel task cukup memiliki `project_id`. Kita bisa tahu task itu milik company apa dengan cara menengok `company_id` yang ada di tabel `projects` induknya (via JOIN).
+Awalnya saya ragu apakah tabel `tasks` perlu kolom `company_id` sendiri. Secara normalisasi relasional (3NF), cukup lewat `project_id` — company task bisa ditelusuri via JOIN ke `projects`.
 
-Namun, saya memutuskan untuk **mendenormalisasi** (menambahkan `company_id` langsung ke dalam tabel `tasks`).
-**Alasan Trade-off:**
-1. **Performa & Simplifikasi Security:** Jika `company_id` ada langsung di tabel tasks, global `CompanyScope` bisa bekerja langsung (`WHERE tasks.company_id = ?`). Jika tidak didenormalisasi, setiap query task harus selalu melakukan query `JOIN projects`. Di skala tabel task yang jutaan row (sering terjadi di aplikasi SaaS), implicit JOIN semacam ini berisiko memperlambat performa read secara signifikan.
-2. Kelemahan pendekatan ini adalah kita harus selalu memastikan nilai `company_id` sinkron dengan `project_id`. Saya menangani kelemahan ini dengan validasi berlapis di level backend.
+Saya memutuskan **mendenormalisasi** (menambahkan `company_id` langsung ke tabel `tasks`), dengan alasan:
+1. **Performa & simplifikasi security:** dengan `company_id` langsung di tabel `tasks`, `CompanyScope` bisa langsung `WHERE tasks.company_id = ?` tanpa perlu implicit JOIN ke `projects` di setiap query — penting untuk endpoint list task yang paling sering diakses.
+2. **Trade-off/risiko:** nilai `company_id` di `tasks` harus selalu sinkron dengan `company_id` di `projects` induknya. Saya tangani ini dengan meng-set `company_id` task secara otomatis dari `project.company_id` saat create (bukan dari input), sehingga tidak mungkin tidak sinkron melalui jalur normal aplikasi.
 
-## 🚀 Penilaian Plus (Bonus Points)
+---
 
-Sesuai kriteria PDF bagian "Nilai Plus", fitur berikut telah diimplementasikan:
-1. **Hindari N+1 Query & Indexing:** 
-   - Semua relasi di API (seperti `assignee`, `project`, `creator`) dimuat menggunakan `.with()` (Eager Loading).
-   - Kolom ForeignKey `company_id`, `project_id`, dan `assigned_to` sudah di-*index* di sisi Database (Migration).
-2. **Audit Trail (Activity Log) Menyeluruh:**
-   - **Fitur Baru:** Setiap aksi Create, Update, dan Delete pada Project maupun Task akan otomatis terekam di tabel `activity_logs`.
-   - Proses pencatatan ini bekerja secara transparan di background menggunakan **Model Observers** (`TaskObserver` & `ProjectObserver`).
-   - Terdapat antarmuka UI khusus bagi Admin untuk melihat *history* log secara lengkap. Tentu saja, log ini **sepenuhnya tunduk pada aturan Tenant Isolation**, sehingga Admin Perusahaan A sama sekali tidak bisa melihat aktivitas dari Perusahaan B.
-   - (Sebagai pelengkap, Admin juga tetap diwajibkan menyertakan Note / Alasan khusus ketika menggeser tugas yang berstatus *Done/In Progress* di fitur *re-assign*).
+## 🧩 Apa yang Di-skip / Dikorbankan Karena Waktu
+
+*(Isi bagian ini jujur sesuai kondisi riil kamu — draft di bawah asumsi hampir semua requirement + nilai plus sudah selesai, sesuaikan kalau ada yang belum sempat.)*
+
+- **Rate limiting per endpoint** belum diimplementasikan — Laravel sudah punya throttle middleware bawaan yang bisa langsung dipasang, tapi belum sempat dikonfigurasi & ditest secara khusus.
+- **Postman/OpenAPI collection file** belum dibuat sebagai file terpisah — contoh request masih dalam bentuk curl di README ini saja.
+- **Note wajib saat reassign task berstatus Done/In Progress** adalah business rule tambahan di luar requirement asli soal (bukan diminta di spesifikasi) — ditambahkan sebagai contoh penanganan audit trail yang lebih ketat. Kalau field `note` tidak dikirim saat reassign task dengan status tersebut, request akan [isi sesuai actual behavior: ditolak validasi / note bersifat opsional].
+- Kalau ada waktu lebih, berikutnya saya akan tambahkan: test coverage untuk audit trail & race condition secara otomatis (saat ini keduanya sudah diimplementasi tapi belum ada test khusus yang memverifikasi perilakunya), serta styling frontend yang lebih rapi (saat ini fungsional, belum dipoles).
+
+---
+
+## 🚀 Nilai Plus (Bonus Points) yang Diimplementasikan
+
+1. **Hindari N+1 Query & Indexing:**
+   - Semua relasi di API (`assignee`, `project`, `creator`) dimuat menggunakan eager loading (`.with()`).
+   - Kolom foreign key `company_id`, `project_id`, dan `assigned_to` sudah di-index di migration.
+2. **Audit Trail (Activity Log):**
+   - Setiap aksi Create, Update, Delete pada Project maupun Task otomatis tercatat di tabel `activity_logs` lewat Model Observer (`TaskObserver`, `ProjectObserver`).
+   - Log ini tunduk penuh pada tenant isolation — Admin Company A tidak bisa melihat activity log Company B.
+   - Ada UI khusus admin untuk melihat history log (via frontend Livewire).
+   - Sebagai tambahan: reassign task yang berstatus Done/In Progress mewajibkan Note/alasan (lihat catatan di bagian "Di-skip" di atas — ini di luar requirement asli).
 3. **Penanganan Race Condition (Pessimistic Locking):**
-   - **Masalah:** Dua pengguna bisa saja secara bersamaan mengupdate status/memindahkan tugas di waktu/milidetik yang sama (Race condition).
-   - **Solusi:** Saya membungkus proses `update` dan `reassign` pada `TaskService` menggunakan `DB::transaction()` serta metode `->lockForUpdate()`. 
-   - **Trade-off:** `lockForUpdate()` akan membuat query dari pengguna ke-2 menunggu (mengantri) baris data tersebut dilepaskan oleh transaksi pengguna ke-1 (Pessimistic Locking). Sangat aman dari data korup, walau sedikit menambah latency jika sistem sangat ramai di detik yang sama.
-4. **Migration yang Reversible:**
-   - Semua kelas migrasi memiliki fungsi `down()` yang valid.
-5. **Contoh CI/CD & Containerization:**
-   - **GitHub Actions:** Terdapat file konfigurasi `.github/workflows/tests.yml` untuk memicu *automated testing* saat kode di-push ke branch master/main.
-   - **Dockerfile:** Terdapat contoh `Dockerfile` lengkap dengan Multi-stage build menggunakan Nginx & PHP 8.3-FPM Alpine siap untuk deployment ke arsitektur *Cloud*.
+   - Update dan reassign task di `TaskService` dibungkus `DB::transaction()` + `->lockForUpdate()`.
+   - **Trade-off:** request kedua yang datang bersamaan akan menunggu baris data dilepas oleh transaksi pertama (aman dari data korup), dengan sedikit tambahan latency di skenario concurrent tinggi.
+4. **Migration Reversible:** semua migration punya fungsi `down()` yang valid.
+5. **CI/CD & Containerization:**
+   - GitHub Actions (`.github/workflows/tests.yml`) untuk automated testing saat push ke branch master/main.
+   - `Dockerfile` multi-stage build (Nginx + PHP 8.3-FPM Alpine) siap deploy.
 
-
+---
 
 ## 🔌 API Request Examples
 
-Untuk memudahkan pengujian via Postman, cURL, atau ThunderClient. Pastikan Anda menyertakan Header `Accept: application/json` pada semua request.
+Sertakan header `Accept: application/json` di semua request.
 
-### 1. Register Company & Admin Baru
-```curl
+### Auth
+
+**1. Register Company & Admin Baru**
+```bash
 curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
--H "Accept: application/json" \
--H "Content-Type: application/json" \
+-H "Accept: application/json" -H "Content-Type: application/json" \
 -d '{
     "company_name": "PT Jaya Abadi",
     "name": "Bapak CEO",
@@ -133,44 +147,62 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/register \
     "password_confirmation": "password"
 }'
 ```
-*(Simpan nilai token dari respons JSON, Anda butuh ini untuk request selanjutnya)*
+*(Simpan token dari respons — dibutuhkan untuk semua request berikutnya)*
 
-### 2. Login
-```curl
+**2. Login**
+```bash
 curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
--H "Accept: application/json" \
--H "Content-Type: application/json" \
--d '{
-    "email": "admin@alpha.com",
-    "password": "password"
-}'
+-H "Accept: application/json" -H "Content-Type: application/json" \
+-d '{ "email": "admin@alpha.com", "password": "password" }'
 ```
 
-### 3. List Semua Project (Menggunakan Token)
-```curl
+### Project
+
+**3. List Project**
+```bash
 curl -X GET http://127.0.0.1:8000/api/v1/projects \
--H "Accept: application/json" \
--H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>"
+-H "Accept: application/json" -H "Authorization: Bearer <TOKEN>"
 ```
 
-### 4. Create Project (Hanya bisa oleh Admin)
-```curl
+**4. Create Project (Admin only)**
+```bash
 curl -X POST http://127.0.0.1:8000/api/v1/projects \
--H "Accept: application/json" \
--H "Content-Type: application/json" \
--H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>" \
--d '{
-    "name": "Project Penting Tahun Ini",
-    "description": "Fokus pada Q3."
-}'
+-H "Accept: application/json" -H "Content-Type: application/json" \
+-H "Authorization: Bearer <TOKEN>" \
+-d '{ "name": "Project Penting Tahun Ini", "description": "Fokus pada Q3." }'
 ```
 
-### 5. Create Member Baru (Admin Only)
-```curl
+### Task
+
+**5. List Task dalam Project**
+```bash
+curl -X GET http://127.0.0.1:8000/api/v1/projects/1/tasks \
+-H "Accept: application/json" -H "Authorization: Bearer <TOKEN>"
+```
+
+**6. Create Task (Admin only)**
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/projects/1/tasks \
+-H "Accept: application/json" -H "Content-Type: application/json" \
+-H "Authorization: Bearer <TOKEN>" \
+-d '{ "title": "Setup CI Pipeline", "description": "Tambah GitHub Actions", "assigned_to": 2 }'
+```
+
+**7. Update Status Task (Member — hanya task miliknya sendiri)**
+```bash
+curl -X PATCH http://127.0.0.1:8000/api/v1/projects/1/tasks/1 \
+-H "Accept: application/json" -H "Content-Type: application/json" \
+-H "Authorization: Bearer <TOKEN_MEMBER>" \
+-d '{ "status": "in_progress" }'
+```
+
+### User Management
+
+**8. Create Member Baru (Admin only)**
+```bash
 curl -X POST http://127.0.0.1:8000/api/v1/users \
--H "Accept: application/json" \
--H "Content-Type: application/json" \
--H "Authorization: Bearer <TULIS_TOKEN_ANDA_DISINI>" \
+-H "Accept: application/json" -H "Content-Type: application/json" \
+-H "Authorization: Bearer <TOKEN>" \
 -d '{
     "name": "Staff Baru",
     "email": "staff@alpha.com",
@@ -178,4 +210,4 @@ curl -X POST http://127.0.0.1:8000/api/v1/users \
     "password_confirmation": "password"
 }'
 ```
-*(Member yang baru dibuat otomatis akan masuk ke company yang sama dengan Admin, dan rolenya pasti 'member').*
+*(Member baru otomatis masuk ke company yang sama dengan admin yang membuat, dan rolenya selalu `member`)*
