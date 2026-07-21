@@ -9,12 +9,12 @@
 |---|-----------|--------|--------|
 | 1 | Skema DB (migrations + models + index) | ✅ Selesai | `39d0355` |
 | 2 | Auth Sanctum + Global Scope tenant isolation | ✅ Selesai | `f876ddc` |
-| 2b | Fix: CompanyScope guard hardening + exception handlers + default role=member | ✅ Selesai | *(belum commit)* |
-| 3 | CRUD Project & Task + Policy RBAC + Kelola User | ✅ Selesai | *(belum commit)* |
-| 4 | Background Job (SendTaskAssignedNotification) | ✅ Selesai | *(stub, dispatch ada di TaskService)* |
-| 5 | Testing (tenant isolation + RBAC + validasi) | ✅ Selesai | *(belum commit)* |
-| 6 | Seeder + README | ✅ Selesai | *(belum commit)* |
-| 7 | Frontend Blade + Livewire *(opsional)* | ✅ Selesai | *(belum commit)* |
+| 2b | Fix: CompanyScope guard hardening + default role=member | ✅ Selesai | `Commit selesai` |
+| 3 | CRUD Project & Task + Policy RBAC + Kelola User | ✅ Selesai | `Commit selesai` |
+| 4 | Background Job (SendTaskAssignedNotification) | ✅ Selesai | `Commit selesai` |
+| 5 | Testing (tenant isolation + RBAC + validasi) | ✅ Selesai | `Commit selesai` |
+| 6 | Seeder + README | ✅ Selesai | `Commit selesai` |
+| 7 | Frontend Blade + Livewire (UI Project, Task, User, Activity Log) | ✅ Selesai | `Commit selesai` |
 
 ### File yang sudah dibuat
 
@@ -279,6 +279,7 @@ Urutan prioritas kalau ada sisa waktu:
 4. Dockerfile sederhana (docker-compose: app + mysql)
 5. Penjelasan race condition di README (contoh: dua admin update task bersamaan) — cukup dijelaskan, tidak wajib diimplementasi kalau waktu mepet
 6. **Audit Trail (Activity Log) Menyeluruh:** Mencatat setiap aktivitas Create, Update, Delete menggunakan Model Observers dengan dukungan Tenant Isolation.
+7. **User Management UI:** Antarmuka khusus untuk Admin dalam menambahkan anggota baru secara aman ke perusahaannya (otomatis sebagai member).
 
 ---
 
